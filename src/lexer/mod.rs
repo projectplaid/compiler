@@ -45,13 +45,14 @@ impl LexerInstance {
     fn skip_whitespace(&mut self) {
         let mut buffer = [0; 1];
         loop {
+            let cur_pos = self.reader.seek(SeekFrom::Current(0)).unwrap();
             let result = self.reader.read(&mut buffer);
             let _bytes_read: usize = 0;
             match result {
                 Ok(_bytes_read) => match buffer[0] {
                     9 | 10 | 13 | 32 => (),
                     _ => {
-                        self.reader.seek(SeekFrom::Current(-1));
+                        let _ = self.reader.seek(SeekFrom::Start(cur_pos)).unwrap();
                         break;
                     }
                 },
