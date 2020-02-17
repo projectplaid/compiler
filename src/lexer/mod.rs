@@ -1,8 +1,8 @@
-use std::fs::File;
+use std::fs;
 use std::io;
 use std::io::prelude::*;
-use std::io::BufReader;
-use std::io::SeekFrom;
+use std::iter::Peekable;
+use std::vec::IntoIter;
 
 #[derive(PartialEq)]
 pub enum Symbol {
@@ -32,7 +32,7 @@ pub struct Token {
 }
 
 pub struct LexerInstance {
-    reader: BufReader<std::fs::File>,
+    reader_iter: Peekable<IntoIter<char>>,
 }
 
 fn generate_token(symbol: Symbol, value: String) -> Token {
@@ -44,28 +44,27 @@ fn generate_token(symbol: Symbol, value: String) -> Token {
 
 impl LexerInstance {
     pub fn new(filename: String) -> io::Result<LexerInstance> {
-        let f = File::open(filename)?;
-        let reader = BufReader::new(f);
+        let s = fs::read_to_string(filename)?;
 
-        Ok(LexerInstance { reader: reader })
+        Ok(LexerInstance {
+            reader_iter: s.chars().collect::<Vec<_>>().into_iter().peekable(),
+        })
     }
 
     fn skip_whitespace(&mut self) {
-        let mut buffer = [0; 1];
         loop {
-            let cur_pos = self.reader.seek(SeekFrom::Current(0)).unwrap();
-            let result = self.reader.read(&mut buffer);
-            let _bytes_read: usize = 0;
+            let result = self.reader_iter.peek();
             match result {
-                Ok(_bytes_read) => match buffer[0] {
-                    9 | 10 | 13 | 32 => (),
+                Some(ch) => match ch {
+                    '\t' | '\r' | '\n' | ' ' => {
+                        let _ = self.reader_iter.next();
+                    }
                     _ => {
-                        let _ = self.reader.seek(SeekFrom::Start(cur_pos)).unwrap();
-                        break;
+                        return;
                     }
                 },
-                _ => {
-                    break;
+                None => {
+                    return;
                 }
             }
         }
@@ -78,20 +77,21 @@ impl LexerInstance {
         let mut loop_count = 0;
 
         loop {
-            let mut buffer = [0; 1];
-            let result = self.reader.read(&mut buffer).unwrap();
-            if result == 0 {
-                return generate_token(Symbol::EndOfFile, value);
-            }
-
-            match buffer[0] as char {
-                '.' => {}
-                _ => {
-                    value.push(buffer[0] as char);
+            let ch = self.reader_iter.next();
+            match ch {
+                None => {
+                    return generate_token(Symbol::EndOfFile, value);
+                }
+                Some(ch) => {
+                    match ch {
+                        '.' => {}
+                        _ => {
+                            value.push(ch);
+                        }
+                    }
+                    loop_count = loop_count + 1;
                 }
             }
-
-            loop_count = loop_count + 1;
         }
     }
 }
@@ -109,5 +109,18 @@ mod tests {
 
         let token = instance.next();
         assert!(token.symbol == Symbol::EndOfFile);
+    }
+
+    #[test]
+    fn test_identifier() {
+        let result = LexerInstance::new("tests/identifier.st".to_string());
+        assert!(result.is_ok());
+
+        let mut instance = result.unwrap();
+
+        let token = instance.next();
+        assert!(token.symbol == Symbol::EndOfFile);
+        println!("{}", token.value);
+        assert!(token.value == "Foobar");
     }
 }
