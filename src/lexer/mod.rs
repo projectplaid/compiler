@@ -4,6 +4,7 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::io::SeekFrom;
 
+#[derive(PartialEq)]
 pub enum Symbol {
     Identifier,
     Number,
@@ -64,9 +65,16 @@ impl LexerInstance {
     }
     pub fn next(&mut self) -> Token {
         self.skip_whitespace();
-        Token {
-            symbol: Symbol::Identifier,
-            value: "foo".to_string(),
+
+        loop {
+            let mut buffer = [0; 1];
+            let result = self.reader.read(&mut buffer).unwrap();
+            if result == 0 {
+                return Token {
+                    symbol: Symbol::EndOfFile,
+                    value: "".to_string(),
+                };
+            }
         }
     }
 }
@@ -76,12 +84,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new() {
-        let result = LexerInstance::new("tests/foo.st".to_string());
+    fn test_empty_source_file() {
+        let result = LexerInstance::new("tests/empty.st".to_string());
         assert!(result.is_ok());
 
         let mut instance = result.unwrap();
 
-        instance.next();
+        let token = instance.next();
+        assert!(token.symbol == Symbol::EndOfFile);
     }
 }
