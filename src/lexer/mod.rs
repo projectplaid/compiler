@@ -35,6 +35,13 @@ pub struct LexerInstance {
     reader: BufReader<std::fs::File>,
 }
 
+fn generate_token(symbol: Symbol, value: String) -> Token {
+    return Token {
+        symbol: symbol,
+        value: value,
+    };
+}
+
 impl LexerInstance {
     pub fn new(filename: String) -> io::Result<LexerInstance> {
         let f = File::open(filename)?;
@@ -63,18 +70,20 @@ impl LexerInstance {
             }
         }
     }
+
     pub fn next(&mut self) -> Token {
         self.skip_whitespace();
+
+        let mut value = String::new();
 
         loop {
             let mut buffer = [0; 1];
             let result = self.reader.read(&mut buffer).unwrap();
             if result == 0 {
-                return Token {
-                    symbol: Symbol::EndOfFile,
-                    value: "".to_string(),
-                };
+                return generate_token(Symbol::EndOfFile, value);
             }
+
+            value.push(buffer[0] as char);
         }
     }
 }
