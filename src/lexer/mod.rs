@@ -75,6 +75,7 @@ impl LexerInstance {
         self.skip_whitespace();
 
         let mut value = String::new();
+        let mut loop_count = 0;
 
         loop {
             let mut buffer = [0; 1];
@@ -83,7 +84,14 @@ impl LexerInstance {
                 return generate_token(Symbol::EndOfFile, value);
             }
 
-            value.push(buffer[0] as char);
+            match buffer[0] as char {
+                '.' => {}
+                _ => {
+                    value.push(buffer[0] as char);
+                }
+            }
+
+            loop_count = loop_count + 1;
         }
     }
 }
