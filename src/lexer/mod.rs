@@ -77,16 +77,18 @@ impl LexerInstance {
         let mut loop_count = 0;
 
         loop {
-            let ch = self.reader_iter.next();
+            let ch = self.reader_iter.peek();
             match ch {
                 None => {
                     return generate_token(Symbol::EndOfFile, value);
                 }
                 Some(ch) => {
                     match ch {
-                        '.' => {}
+                        '.' => {
+                            return generate_token(Symbol::Period, value);
+                        }
                         _ => {
-                            value.push(ch);
+                            value.push(*ch);
                         }
                     }
                     loop_count = loop_count + 1;
