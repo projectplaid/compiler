@@ -38,6 +38,8 @@ pub struct LexerError {
 
 pub struct LexerInstance {
     reader_iter: Peekable<IntoIter<char>>,
+    column: u64,
+    line: u64,
 }
 
 fn generate_token(symbol: Symbol, value: String) -> Token {
@@ -53,14 +55,37 @@ impl LexerInstance {
 
         Ok(LexerInstance {
             reader_iter: s.chars().collect::<Vec<_>>().into_iter().peekable(),
+            column: 1,
+            line: 1,
         })
+    }
+
+    fn get_char(&mut self) -> Option<char> {
+        if let Some(c) = self.reader_iter.next() {
+            match c {
+                '\n' => {
+                    self.column = 1;
+                    self.line = self.line + 1;
+                    return Some(c);
+                }
+                '\r' => {
+                    return Some(c);
+                }
+                _ => {
+                    self.column = self.column + 1;
+                    return Some(c);
+                }
+            }
+        }
+
+        None
     }
 
     fn skip_whitespace(&mut self) {
         while let Some(&c) = self.reader_iter.peek() {
             match c {
                 '\t' | '\r' | '\n' | ' ' => {
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
                 }
                 _ => {
                     return;
@@ -74,9 +99,8 @@ impl LexerInstance {
     }
 
     fn handle_string(&mut self) -> Result<Token, LexerError> {
-        let first_ch = self
-            .reader_iter
-            .next()
+        let _ = self
+            .get_char()
             .expect("first character should be available");
         let mut value = String::new();
         // do NOT push the first ' into the result
@@ -85,13 +109,13 @@ impl LexerInstance {
             match c {
                 '\'' => {
                     // this is either the end of the string or an escaped '
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
 
                     if let Some(&ch) = self.reader_iter.peek() {
                         match ch {
                             '\'' => {
                                 value.push('\'');
-                                let _ = self.reader_iter.next();
+                                let _ = self.get_char();
                             }
                             _ => {
                                 return Ok(generate_token(Symbol::StringLiteral, value));
@@ -102,7 +126,7 @@ impl LexerInstance {
                     }
                 }
                 _ => {
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
                     if c != '\r' {
                         // strip any \r, we're all \n internally
                         value.push(c);
@@ -118,8 +142,7 @@ impl LexerInstance {
 
     fn handle_alpha(&mut self) -> Result<Token, LexerError> {
         let first_ch = self
-            .reader_iter
-            .next()
+            .get_char()
             .expect("first character should be available");
         let mut value = String::new();
         value.push(first_ch);
@@ -130,11 +153,11 @@ impl LexerInstance {
                     return Ok(generate_token(Symbol::Identifier, value));
                 }
                 'A'..='Z' | 'a'..='z' | '0'..='9' | '_' => {
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
                     value.push(c);
                 }
                 ':' => {
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
                     return Ok(generate_token(Symbol::Keyword, value));
                 }
                 _ => {
@@ -160,13 +183,13 @@ impl LexerInstance {
                 '0'..='9' => return self.handle_number(),
                 'A'..='Z' | 'a'..='z' => return self.handle_alpha(),
                 '.' => {
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
                     return Ok(generate_token(Symbol::Period, ".".to_string()));
                 }
                 '\'' => return self.handle_string(),
                 '"' => return self.handle_comment(),
                 _ => {
-                    let _ = self.reader_iter.next();
+                    let _ = self.get_char();
                     return Err(LexerError {
                         message: format!("unexpected character {}", c),
                     });
