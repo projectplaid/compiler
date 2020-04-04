@@ -3,7 +3,7 @@ use std::io;
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Symbol {
     Identifier,
     Keyword,
@@ -74,7 +74,46 @@ impl LexerInstance {
     }
 
     fn handle_string(&mut self) -> Result<Token, LexerError> {
-        Ok(generate_token(Symbol::EndOfFile, "".to_string()))
+        let first_ch = self
+            .reader_iter
+            .next()
+            .expect("first character should be available");
+        let mut value = String::new();
+        // do NOT push the first ' into the result
+
+        while let Some(&c) = self.reader_iter.peek() {
+            match c {
+                '\'' => {
+                    // this is either the end of the string or an escaped '
+                    let _ = self.reader_iter.next();
+
+                    if let Some(&ch) = self.reader_iter.peek() {
+                        match ch {
+                            '\'' => {
+                                value.push('\'');
+                                let _ = self.reader_iter.next();
+                            }
+                            _ => {
+                                return Ok(generate_token(Symbol::StringLiteral, value));
+                            }
+                        }
+                    } else {
+                        return Ok(generate_token(Symbol::StringLiteral, value));
+                    }
+                }
+                _ => {
+                    let _ = self.reader_iter.next();
+                    if c != '\r' {
+                        // strip any \r, we're all \n internally
+                        value.push(c);
+                    }
+                }
+            }
+        }
+
+        Err(LexerError {
+            message: format!("unterminated string constant: {}", value),
+        })
     }
 
     fn handle_alpha(&mut self) -> Result<Token, LexerError> {
@@ -98,7 +137,6 @@ impl LexerInstance {
                     let _ = self.reader_iter.next();
                     return Ok(generate_token(Symbol::Keyword, value));
                 }
-
                 _ => {
                     return Err(LexerError {
                         message: format!("unexpected char {}", c),
@@ -121,13 +159,17 @@ impl LexerInstance {
             match c {
                 '0'..='9' => return self.handle_number(),
                 'A'..='Z' | 'a'..='z' => return self.handle_alpha(),
-                '.' => return Ok(generate_token(Symbol::Period, ".".to_string())),
+                '.' => {
+                    let _ = self.reader_iter.next();
+                    return Ok(generate_token(Symbol::Period, ".".to_string()));
+                }
                 '\'' => return self.handle_string(),
                 '"' => return self.handle_comment(),
                 _ => {
+                    let _ = self.reader_iter.next();
                     return Err(LexerError {
                         message: format!("unexpected character {}", c),
-                    })
+                    });
                 }
             }
         } else {
@@ -160,7 +202,38 @@ mod tests {
 
         let token = instance.next().expect("unable to get token");
         assert!(token.symbol == Symbol::EndOfFile);
-        println!("{}", token.value);
         assert!(token.value == "Foobar");
+    }
+
+    #[test]
+    fn test_strings() {
+        let result = LexerInstance::new("tests/strings.st".to_string());
+        assert!(result.is_ok());
+
+        let mut instance = result.unwrap();
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::StringLiteral, token.symbol);
+        assert_eq!("This is a string", token.value);
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::Period, token.symbol);
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::StringLiteral, token.symbol);
+        assert_eq!("This is a string 'inside a string'", token.value);
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::Period, token.symbol);
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::StringLiteral, token.symbol);
+        assert_eq!("This is a\nmultiline\nstring", token.value);
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::Period, token.symbol);
+
+        let token = instance.next().expect("unable to get token");
+        assert_eq!(Symbol::EndOfFile, token.symbol);
     }
 }
