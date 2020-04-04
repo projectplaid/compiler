@@ -213,7 +213,7 @@ mod tests {
         let mut instance = result.unwrap();
 
         let token = instance.next().expect("unable to get token");
-        assert!(token.symbol == Symbol::EndOfFile);
+        assert_eq!(Symbol::EndOfFile, token.symbol);
     }
 
     #[test]
@@ -224,8 +224,8 @@ mod tests {
         let mut instance = result.unwrap();
 
         let token = instance.next().expect("unable to get token");
-        assert!(token.symbol == Symbol::EndOfFile);
-        assert!(token.value == "Foobar");
+        assert_eq!(Symbol::EndOfFile, token.symbol);
+        assert_eq!("Foobar", token.value);
     }
 
     #[test]
