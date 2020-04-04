@@ -6,6 +6,7 @@ use std::vec::IntoIter;
 #[derive(PartialEq)]
 pub enum Symbol {
     Identifier,
+    Keyword,
     Number,
     LParen,
     RParen,
@@ -68,31 +69,70 @@ impl LexerInstance {
         }
     }
 
-    pub fn next(&mut self) -> Result<Token, LexerError> {
-        self.skip_whitespace();
+    fn handle_number(&mut self) -> Result<Token, LexerError> {
+        Ok(generate_token(Symbol::EndOfFile, "".to_string()))
+    }
 
+    fn handle_string(&mut self) -> Result<Token, LexerError> {
+        Ok(generate_token(Symbol::EndOfFile, "".to_string()))
+    }
+
+    fn handle_alpha(&mut self) -> Result<Token, LexerError> {
+        let first_ch = self
+            .reader_iter
+            .next()
+            .expect("first character should be available");
         let mut value = String::new();
+        value.push(first_ch);
 
         while let Some(&c) = self.reader_iter.peek() {
             match c {
-                '0'..='9' => {
-                    // parse number
+                '\t' | '\r' | '\n' | ' ' => {
+                    return Ok(generate_token(Symbol::Identifier, value));
                 }
-                'A'..='Z' | 'a'..='z' => {
-                    // parse string
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '_' => {
+                    let _ = self.reader_iter.next();
+                    value.push(c);
                 }
-                '.' => {
-                    return Ok(generate_token(Symbol::Period, value));
+                ':' => {
+                    let _ = self.reader_iter.next();
+                    return Ok(generate_token(Symbol::Keyword, value));
                 }
+
                 _ => {
                     return Err(LexerError {
-                        message: format!("unexpected character {}", c),
+                        message: format!("unexpected char {}", c),
                     });
                 }
             }
         }
 
         Ok(generate_token(Symbol::EndOfFile, value))
+    }
+
+    fn handle_comment(&mut self) -> Result<Token, LexerError> {
+        Ok(generate_token(Symbol::EndOfFile, "".to_string()))
+    }
+
+    pub fn next(&mut self) -> Result<Token, LexerError> {
+        self.skip_whitespace();
+
+        if let Some(&c) = self.reader_iter.peek() {
+            match c {
+                '0'..='9' => return self.handle_number(),
+                'A'..='Z' | 'a'..='z' => return self.handle_alpha(),
+                '.' => return Ok(generate_token(Symbol::Period, ".".to_string())),
+                '\'' => return self.handle_string(),
+                '"' => return self.handle_comment(),
+                _ => {
+                    return Err(LexerError {
+                        message: format!("unexpected character {}", c),
+                    })
+                }
+            }
+        } else {
+            Ok(generate_token(Symbol::EndOfFile, "".to_string()))
+        }
     }
 }
 
