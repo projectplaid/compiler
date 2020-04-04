@@ -1,6 +1,5 @@
 use std::fs;
 use std::io;
-use std::io::prelude::*;
 use std::iter::Peekable;
 use std::vec::IntoIter;
 
@@ -31,6 +30,11 @@ pub struct Token {
     pub value: String,
 }
 
+#[derive(Debug)]
+pub struct LexerError {
+    pub message: String,
+}
+
 pub struct LexerInstance {
     reader_iter: Peekable<IntoIter<char>>,
 }
@@ -52,49 +56,43 @@ impl LexerInstance {
     }
 
     fn skip_whitespace(&mut self) {
-        loop {
-            let result = self.reader_iter.peek();
-            match result {
-                Some(ch) => match ch {
-                    '\t' | '\r' | '\n' | ' ' => {
-                        let _ = self.reader_iter.next();
-                    }
-                    _ => {
-                        return;
-                    }
-                },
-                None => {
+        while let Some(&c) = self.reader_iter.peek() {
+            match c {
+                '\t' | '\r' | '\n' | ' ' => {
+                    let _ = self.reader_iter.next();
+                }
+                _ => {
                     return;
                 }
             }
         }
     }
 
-    pub fn next(&mut self) -> Token {
+    pub fn next(&mut self) -> Result<Token, LexerError> {
         self.skip_whitespace();
 
         let mut value = String::new();
-        let mut loop_count = 0;
 
-        loop {
-            let ch = self.reader_iter.peek();
-            match ch {
-                None => {
-                    return generate_token(Symbol::EndOfFile, value);
+        while let Some(&c) = self.reader_iter.peek() {
+            match c {
+                '0'..='9' => {
+                    // parse number
                 }
-                Some(ch) => {
-                    match ch {
-                        '.' => {
-                            return generate_token(Symbol::Period, value);
-                        }
-                        _ => {
-                            value.push(*ch);
-                        }
-                    }
-                    loop_count = loop_count + 1;
+                'A'..='Z' | 'a'..='z' => {
+                    // parse string
+                }
+                '.' => {
+                    return Ok(generate_token(Symbol::Period, value));
+                }
+                _ => {
+                    return Err(LexerError {
+                        message: format!("unexpected character {}", c),
+                    });
                 }
             }
         }
+
+        Ok(generate_token(Symbol::EndOfFile, value))
     }
 }
 
@@ -109,7 +107,7 @@ mod tests {
 
         let mut instance = result.unwrap();
 
-        let token = instance.next();
+        let token = instance.next().expect("unable to get token");
         assert!(token.symbol == Symbol::EndOfFile);
     }
 
@@ -120,7 +118,7 @@ mod tests {
 
         let mut instance = result.unwrap();
 
-        let token = instance.next();
+        let token = instance.next().expect("unable to get token");
         assert!(token.symbol == Symbol::EndOfFile);
         println!("{}", token.value);
         assert!(token.value == "Foobar");
