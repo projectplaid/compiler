@@ -175,7 +175,7 @@ impl LexerInstance {
         Ok(generate_token(Symbol::EndOfFile, "".to_string()))
     }
 
-    pub fn next(&mut self) -> Result<Token, LexerError> {
+    pub fn next_token(&mut self) -> Result<Token, LexerError> {
         self.skip_whitespace();
 
         if let Some(&c) = self.reader_iter.peek() {
@@ -212,7 +212,7 @@ mod tests {
 
         let mut instance = result.unwrap();
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::EndOfFile, token.symbol);
     }
 
@@ -223,7 +223,7 @@ mod tests {
 
         let mut instance = result.unwrap();
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::EndOfFile, token.symbol);
         assert_eq!("Foobar", token.value);
     }
@@ -235,28 +235,28 @@ mod tests {
 
         let mut instance = result.unwrap();
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::StringLiteral, token.symbol);
         assert_eq!("This is a string", token.value);
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::Period, token.symbol);
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::StringLiteral, token.symbol);
         assert_eq!("This is a string 'inside a string'", token.value);
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::Period, token.symbol);
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::StringLiteral, token.symbol);
         assert_eq!("This is a\nmultiline\nstring", token.value);
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::Period, token.symbol);
 
-        let token = instance.next().expect("unable to get token");
+        let token = instance.next_token().expect("unable to get token");
         assert_eq!(Symbol::EndOfFile, token.symbol);
     }
 }
