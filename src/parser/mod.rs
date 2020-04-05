@@ -1,5 +1,8 @@
+#[allow(unused)]
+
 use crate::lexer::*;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum Node {
     Empty,

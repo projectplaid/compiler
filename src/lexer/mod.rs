@@ -1,3 +1,5 @@
+#[allow(unused,dead_code,unused_imports)]
+
 use std::fs;
 use std::io;
 use std::iter::Peekable;
@@ -43,10 +45,10 @@ pub struct LexerInstance {
 }
 
 fn generate_token(symbol: Symbol, value: String) -> Token {
-    return Token {
-        symbol: symbol,
-        value: value,
-    };
+    Token {
+        symbol,
+        value,
+    }
 }
 
 impl LexerInstance {
@@ -65,14 +67,14 @@ impl LexerInstance {
             match c {
                 '\n' => {
                     self.column = 1;
-                    self.line = self.line + 1;
+                    self.line += 1;
                     return Some(c);
                 }
                 '\r' => {
                     return Some(c);
                 }
                 _ => {
-                    self.column = self.column + 1;
+                    self.column += 1;
                     return Some(c);
                 }
             }
@@ -180,19 +182,19 @@ impl LexerInstance {
 
         if let Some(&c) = self.reader_iter.peek() {
             match c {
-                '0'..='9' => return self.handle_number(),
-                'A'..='Z' | 'a'..='z' => return self.handle_alpha(),
+                '0'..='9' => self.handle_number(),
+                'A'..='Z' | 'a'..='z' => self.handle_alpha(),
                 '.' => {
                     let _ = self.get_char();
-                    return Ok(generate_token(Symbol::Period, ".".to_string()));
+                    Ok(generate_token(Symbol::Period, ".".to_string()))
                 }
-                '\'' => return self.handle_string(),
-                '"' => return self.handle_comment(),
+                '\'' => self.handle_string(),
+                '"' => self.handle_comment(),
                 _ => {
                     let _ = self.get_char();
-                    return Err(LexerError {
+                    Err(LexerError {
                         message: format!("unexpected character {}", c),
-                    });
+                    })
                 }
             }
         } else {

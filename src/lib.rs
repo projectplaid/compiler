@@ -1,3 +1,5 @@
+#[allow(unused,dead_code,unused_imports)]
+
 pub mod lexer;
 pub mod parser;
 

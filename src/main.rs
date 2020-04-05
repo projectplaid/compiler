@@ -1,3 +1,5 @@
+#[allow(unused,dead_code,unused_imports)]
+
 use ::compiler::lexer::*;
 
 fn main() {
